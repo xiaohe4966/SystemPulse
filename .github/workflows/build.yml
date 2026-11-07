@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          swift --version
+          xcrun --show-sdk-path
+
+      - name: Build Universal app
+        run: ./build.sh
+
+      - name: Verify binary
+        run: |
+          lipo -archs SystemPulse.app/Contents/MacOS/SystemPulse
+          codesign -dv SystemPulse.app 2>&1 | head -6
+
+      - name: Package
+        run: ditto -c -k --sequesterRsrc --keepParent SystemPulse.app SystemPulse-CI-macOS.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SystemPulse-macOS
+          path: SystemPulse-CI-macOS.zip
+          if-no-files-found: error

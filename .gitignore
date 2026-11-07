@@ -1,0 +1,18 @@
+# 构建产物（.app 请从 Releases 下载，或用 ./build.sh 生成）
+.build/
+SystemPulse.app/
+*.zip
+*.dmg
+*.o
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# 编辑器 / Xcode（本项目不使用 Xcode 工程）
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+.swiftpm/
+.idea/
+.vscode/
