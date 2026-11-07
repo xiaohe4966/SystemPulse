@@ -16,6 +16,9 @@ struct Palette {
     let background: NSColor
     let border: NSColor
     let primary: NSColor
+    /// 文字专用色：始终 alpha=1，不随背景浓度变化（滑杆只调背景）
+    let text: NSColor
+    /// 辅助装饰色（缩放手柄等），允许半透明
     let secondary: NSColor
     let grid: NSColor
     let cpu: NSColor
@@ -28,6 +31,7 @@ struct Palette {
         background: NSColor(srgbRed: 0.055, green: 0.065, blue: 0.085, alpha: 1),
         border: NSColor.white.withAlphaComponent(0.16),
         primary: NSColor(srgbRed: 0.95, green: 0.96, blue: 0.98, alpha: 1),
+        text: NSColor(srgbRed: 0.90, green: 0.92, blue: 0.95, alpha: 1),
         secondary: NSColor.white.withAlphaComponent(0.60),
         grid: NSColor.white.withAlphaComponent(0.09),
         cpu: NSColor(srgbRed: 1.0, green: 0.46, blue: 0.42, alpha: 1),
@@ -41,6 +45,7 @@ struct Palette {
         background: NSColor(srgbRed: 0.98, green: 0.985, blue: 1.0, alpha: 1),
         border: NSColor.black.withAlphaComponent(0.14),
         primary: NSColor(srgbRed: 0.10, green: 0.12, blue: 0.16, alpha: 1),
+        text: NSColor(srgbRed: 0.20, green: 0.22, blue: 0.27, alpha: 1),
         secondary: NSColor.black.withAlphaComponent(0.54),
         grid: NSColor.black.withAlphaComponent(0.08),
         cpu: NSColor(srgbRed: 0.86, green: 0.22, blue: 0.18, alpha: 1),
@@ -201,7 +206,7 @@ final class PulseView: NSView {
         let controlY = inner.maxY - controlHeight - 1
         let titleFont = NSFont.systemFont(ofSize: 8.5, weight: .semibold)
         drawText("SYSTEM PULSE", at: NSPoint(x: inner.minX, y: controlY + 3),
-                 font: titleFont, color: pal.secondary)
+                 font: titleFont, color: pal.text)
 
         let roomy = inner.width >= 250
         let lockLabel = isLocked ? (roomy ? "⌥⌘L 解锁" : "已锁定") : "锁定"
@@ -216,7 +221,7 @@ final class PulseView: NSView {
         let percentWidth = textWidth(percentText, font: percentFont)
         let percentX = lockRect.minX - 8 - percentWidth
         drawText(percentText, at: NSPoint(x: percentX, y: controlY + 3),
-                 font: percentFont, color: pal.secondary)
+                 font: percentFont, color: pal.text)
 
         let trackWidth: CGFloat = 38
         let track = NSRect(x: percentX - 7 - trackWidth, y: controlY + 5,
@@ -239,12 +244,12 @@ final class PulseView: NSView {
 
         drawText(cpuText, at: NSPoint(x: inner.minX, y: rowY), font: numberFont, color: pal.cpu)
         drawText("CPU", at: NSPoint(x: inner.minX + cpuWidth + 5, y: rowY + 13),
-                 font: labelFont, color: pal.secondary)
+                 font: labelFont, color: pal.text)
 
         let column2 = inner.minX + max(120, inner.width * 0.47)
         drawText(memoryText, at: NSPoint(x: column2, y: rowY), font: numberFont, color: pal.memory)
         drawText("MEM", at: NSPoint(x: column2 + memoryWidth + 5, y: rowY + 13),
-                 font: labelFont, color: pal.secondary)
+                 font: labelFont, color: pal.text)
 
         // 空间够时在数值行右侧显示醒目的温度；窄窗口时挪到底部小字里
         if roomy, let celsius = latest.temperature {
@@ -272,7 +277,7 @@ final class PulseView: NSView {
         let average = cpuHistory.reduce(0, +) / Double(max(1, cpuHistory.count))
         let summary = String(format: "峰值 %.0f%% · 均值 %.0f%%", peak * 100, average * 100)
         drawText(summary, at: NSPoint(x: inner.minX, y: inner.minY + 1),
-                 font: footerFont, color: pal.secondary)
+                 font: footerFont, color: pal.text)
 
         let available = latest.totalBytes > latest.usedBytes
             ? latest.totalBytes - latest.usedBytes : 0
@@ -284,7 +289,7 @@ final class PulseView: NSView {
         }
         let availableX = panelRect.maxX - 18 - textWidth(availableText, font: footerFont)
         drawText(availableText, at: NSPoint(x: availableX, y: inner.minY + 1),
-                 font: footerFont, color: pal.secondary)
+                 font: footerFont, color: pal.text)
 
         // 右下角缩放手柄
         for index in 0..<3 {

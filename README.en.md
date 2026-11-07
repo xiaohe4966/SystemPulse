@@ -18,7 +18,7 @@ A native macOS transparent floating window that shows live **CPU / memory / SoC 
 | Temperature | CPU / SoC die temperature in °C (purple number and sparkline), sampled every 3 seconds |
 | Heartbeat chart | Red = CPU, cyan = memory, purple = temperature; scrolling lines with gradient fills and glowing end points |
 | Always-on details | `peak xx% · avg xx%` and `x.x GB free / xx GB`, still visible at the smallest window size |
-| Transparent panel | Borderless rounded window, dark/light appearance, background opacity from 20% to 100% |
+| Transparent panel | Borderless rounded window, dark/light appearance, background opacity from 20% to 100%; **text and lines stay fully opaque and never fade with the background** |
 | Drag & resize | Grab any edge, corner, or the bottom-right grip (minimum 240×116); position and size are remembered |
 | Lock / unlock | When locked, clicks pass through and the panel ignores the mouse entirely; unlock with `⌥⌘L` or the menu bar |
 | On-window controls | Mini opacity slider and lock button in the title row, with a live opacity percentage |
