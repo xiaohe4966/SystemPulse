@@ -54,8 +54,8 @@ To uninstall: quit from the menu bar icon and move `SystemPulse.app` to the Tras
 | Drag an empty area of the panel | Move the window |
 | Drag an edge, a corner, or the bottom-right grip | Resize in eight directions |
 | Drag the slider in the title row | Adjust background opacity (20%–100%), with a live percentage |
-| Click the green **Lock** button | Lock instantly; the button turns orange and reads `⌥⌘L Unlock` |
-| Press `⌥⌘L`, or menu bar icon → **Unlock Panel** | Unlock and restore dragging / resizing |
+| Click the green **锁定 / Lock** button | Lock instantly; the button turns orange and reads `⌥⌘L 解锁` |
+| Press `⌥⌘L`, or menu bar icon → **解锁悬浮窗 / Unlock** | Unlock and restore dragging / resizing |
 | Menu bar menu | Show/hide, always on top, opacity presets, dark/light, reset position and size, quit |
 
 **About locking**: locking sets `ignoresMouseEvents`, so every click goes through to the window below and the panel stops responding to the mouse — including its own lock button and slider. That is intentional: "locked" means *nothing* on the panel reacts. Unlocking therefore lives outside the panel (menu bar + global hotkey), and the locked button puts the shortcut right in its label as a reminder.
@@ -110,6 +110,7 @@ Everything comes from local system counters. No network access, no uploads, no l
 - As an `LSUIElement` app there is no Dock icon or main menu; quit from the menu bar icon.
 - Temperature is the hottest SoC die sensor, and sensor names/counts vary by model — indicative only.
 - Minimum window size is 240×116; smaller would crush the text.
+- The in-app UI text (buttons and menu items) is Chinese only; this README lists the English equivalents.
 
 ## License
 

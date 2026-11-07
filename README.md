@@ -111,6 +111,7 @@ CI 里也跑同一条 `./build.sh`，见 [.github/workflows/build.yml](.github/w
 - `LSUIElement` 应用没有 Dock 图标和主菜单，退出只能通过菜单栏图标。
 - 温度是 SoC die 传感器最高值，不同机型传感器命名与数量不同，数值仅供参考。
 - 窗口最小 240×116，再小会让文字挤在一起。
+- 界面文案（按钮、菜单项）目前只有中文，英文对照见 [README.en.md](README.en.md)。
 
 ## 许可证
 
