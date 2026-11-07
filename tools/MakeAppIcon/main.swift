@@ -2,8 +2,8 @@
 //
 //   swiftc -O tools/MakeAppIcon/main.swift -o .build/makeicon
 //   .build/makeicon --all-previews design/previews
-//   .build/makeicon --style chip --png design/AppIcon-1024.png
-//   .build/makeicon --style chip --iconset design/AppIcon.iconset
+//   .build/makeicon --style pulse --png design/AppIcon-1024.png
+//   .build/makeicon --style pulse --iconset design/AppIcon.iconset
 //
 // 三款风格：
 //   chip    芯片 · 玻璃   —— 沿用「芯片 + 三条走势线」概念，适配 macOS 圆角方形
@@ -23,7 +23,7 @@ struct MakeAppIcon {
 
     static func main() {
         let args = CommandLine.arguments
-        var style: Style = .chip
+        var style: Style = .pulse
         var iconsetPath: String?
         var pngPath: String?
         var previewDir: String?

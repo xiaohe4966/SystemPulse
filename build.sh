@@ -7,14 +7,14 @@
 #
 # 参数可组合，例如：./build.sh --native --run
 # 应用图标由 tools/MakeAppIcon 现场绘制（无需图片素材），可用环境变量换风格：
-#   SYSTEMPULSE_ICON_STYLE=pulse ./build.sh      # chip（默认）/ pulse / minimal
+#   SYSTEMPULSE_ICON_STYLE=chip ./build.sh       # pulse（默认）/ chip / minimal
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP="$ROOT/SystemPulse.app"
 BUILD="$ROOT/.build"
 DEPLOY="11.0"
-ICON_STYLE="${SYSTEMPULSE_ICON_STYLE:-chip}"
+ICON_STYLE="${SYSTEMPULSE_ICON_STYLE:-pulse}"
 
 RUN=0
 NATIVE=0
