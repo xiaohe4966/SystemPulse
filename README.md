@@ -25,6 +25,7 @@ macOS 原生透明悬浮窗，实时显示 **CPU / 内存 / SoC 温度** 和心�
 | 进程占用排行 | 点击 CPU / 内存数字弹出独立列表，**降序 / 升序 / 名称**三种排列、可按进程名或路径搜索，每 2 秒刷新 |
 | 右键进程 | 强制结束、正常退出、在 Finder 中显示运行位置、打开应用、复制名称 / PID / 完整路径 |
 | 菜单栏 | 心电图图标实时显示 `CPU% · 内存% · 温度`，菜单里可显示/隐藏、置顶、切换外观、重置位置、打开进程列表、退出 |
+| 应用图标 | 程序化绘制的 macOS 圆角方形图标：芯片 + 三条彩色走势线；三种风格可选，小尺寸自动简化 |
 
 | 默认界面 | 锁定状态 |
 | --- | --- |
@@ -38,9 +39,29 @@ macOS 原生透明悬浮窗，实时显示 **CPU / 内存 / SoC 温度** 和心�
 
 ---
 
+## 应用图标
+
+![SystemPulse 应用图标](screenshots/app-icon.png)
+
+App 图标完全由 `tools/MakeAppIcon/main.swift` 用 CoreGraphics 现画，不引入任何图片素材：深蓝玻璃质感的 macOS 圆角方形 + 芯片内框与简化引脚，红 / 青 / 紫三条折线分别对应悬浮窗里的 CPU / 内存 / 温度。`build.sh` 会自动生成 16~1024 共 10 档 PNG、合成 `AppIcon.icns` 放进 `.app`，所以从源码编译也能得到同一个图标。
+
+16 / 32 / 64px 档会自动去掉网格、引脚和彩色细节，只保留一条加粗心跳线，缩到 Finder 列表或菜单栏尺寸依然清晰可辨。
+
+内置三款风格，编译时用环境变量切换（1024×1024 预览见 [design/candidates/](design/candidates/)）：
+
+```bash
+SYSTEMPULSE_ICON_STYLE=chip    ./build.sh   # 芯片·玻璃（默认）
+SYSTEMPULSE_ICON_STYLE=pulse   ./build.sh   # 三色脉冲（去掉芯片框）
+SYSTEMPULSE_ICON_STYLE=minimal ./build.sh   # 极简心跳（蓝色底 + 单条白线）
+```
+
+> 这是 `LSUIElement` 菜单栏程序，不显示 Dock 图标；新图标会出现在 Finder、Spotlight、活动监视器和各类系统对话框里。菜单栏里仍是独立的模板心电图小图标（锁定时变橙色）。
+
+---
+
 ## 下载与安装
 
-到 [Releases](https://github.com/xiaohe4966/SystemPulse/releases/latest) 下载 **`SystemPulse-1.1.0-macOS.zip`**，解压后把 `SystemPulse.app` 拖进 `/Applications`，双击运行即可。启动后菜单栏右上角会出现心电图图标。
+到 [Releases](https://github.com/xiaohe4966/SystemPulse/releases/latest) 下载 **`SystemPulse-1.2.0-macOS.zip`**，解压后把 `SystemPulse.app` 拖进 `/Applications`（Finder 里能看到芯片图标），双击运行即可。启动后菜单栏右上角会出现心电图图标。
 
 > **首次打开提示"已损坏，无法打开"？**
 > 这个 App 使用 ad-hoc 签名，没有 Apple Developer ID 签名与公证。在终端执行一次
@@ -104,9 +125,10 @@ cd SystemPulse
 ./build.sh            # 编译 Universal（arm64 + x86_64），可直接分发
 ./build.sh --run      # 编译后立刻启动
 ./build.sh --native   # 只编译当前机器架构，更快
+SYSTEMPULSE_ICON_STYLE=pulse ./build.sh   # 可选：换用另一款应用图标
 ```
 
-产物是同目录下的 `SystemPulse.app`（已 ad-hoc 签名）。脚本会用 `clang` 编译温度探针的 C 代码，再用 `swiftc` 把两个架构的 Swift 产物用 `lipo` 合并。`--run` 和 `--native` 可以组合使用。
+产物是同目录下的 `SystemPulse.app`（已 ad-hoc 签名）。脚本会用 `clang` 编译温度探针的 C 代码，再用 `swiftc` 把两个架构的 Swift 产物用 `lipo` 合并；应用图标也在这一步现场绘制并合成 `AppIcon.icns`。`--run` 和 `--native` 可以组合使用。
 
 CI 里也跑同一条 `./build.sh`，见 [.github/workflows/build.yml](.github/workflows/build.yml)。
 
@@ -124,6 +146,7 @@ CI 里也跑同一条 `./build.sh`，见 [.github/workflows/build.yml](.github/w
 | `Sources/ProcessListController.swift` | 进程列表 `NSWindow` + `NSTableView`：维度切换、三种排序、搜索、右键菜单、强制结束与 Finder 定位 |
 | `Sources/TemperatureMonitor.swift` | 温度 3 秒节流缓存，避免频繁枚举传感器 |
 | `Sources/TemperatureProbe.c/.h` | 通过 IOKit HID 传感器读取温度（C 层） |
+| `tools/MakeAppIcon/main.swift` | CoreGraphics 程序化绘制应用图标：三款风格、16~1024 共 10 档、小尺寸自动简化 |
 
 **关于温度**：Apple 没有公开的 CPU 温度 API，Intel 时代常见的 SMC 键在 Apple Silicon 上也不适用。本项目走 IOKit 的 HID 传感器通道：匹配 `PrimaryUsagePage = 0xff00 (AppleVendor)` / `PrimaryUsage = 0x0005 (温度传感器)`，逐个读取 `kIOHIDEventTypeTemperature` 事件，过滤掉电池 / gas gauge 传感器后取 die 最高温。这些是私有符号，全部通过 `dlsym` 动态解析，**不静态链接私有 API**；事件对象每次读完立即释放。
 

@@ -25,6 +25,7 @@ A native macOS transparent floating window that shows live **CPU / memory / SoC 
 | Process list | Click the CPU / memory number to open a separate window with **descending / ascending / name** sorting, live search, refreshed every 2 seconds |
 | Right-click a process | Force quit, graceful terminate, reveal the app in Finder, open the app, copy name / PID / full path |
 | Menu bar | ECG icon with live `CPU% · MEM% · temp`; menu for show/hide, always-on-top, opacity presets, appearance, reset position, process list, quit |
+| App icon | Programmatically drawn macOS rounded-square icon: chip + three coloured sparklines; three styles, simplified at small sizes |
 
 | Default | Locked |
 | --- | --- |
@@ -38,9 +39,29 @@ A native macOS transparent floating window that shows live **CPU / memory / SoC 
 
 ---
 
+## App icon
+
+![SystemPulse app icon](screenshots/app-icon.png)
+
+The icon is drawn entirely in CoreGraphics by `tools/MakeAppIcon/main.swift` — no image assets, no third-party tools. A dark glass macOS rounded square holds a chip outline with simplified pins and three sparklines in red / cyan / purple, matching the panel's CPU / memory / temperature colours. `build.sh` generates all ten sizes from 16 to 1024 px, packs them into `AppIcon.icns`, and drops it into the bundle, so building from source produces the same icon.
+
+At 16 / 32 / 64 px the grid, pins and coloured lines are dropped automatically and only one bold heartbeat stroke remains, so the icon stays legible in Finder list view and system dialogs.
+
+Three styles ship with the repo; pick one with an environment variable (1024×1024 previews in [design/candidates/](design/candidates/)):
+
+```bash
+SYSTEMPULSE_ICON_STYLE=chip    ./build.sh   # Chip & glass (default)
+SYSTEMPULSE_ICON_STYLE=pulse   ./build.sh   # Three-colour pulse (no chip frame)
+SYSTEMPULSE_ICON_STYLE=minimal ./build.sh   # Minimal heartbeat (blue + one white line)
+```
+
+> This is an `LSUIElement` menu-bar app, so it has no Dock icon; the new icon shows up in Finder, Spotlight, Activity Monitor and system dialogs. The menu bar keeps its own small template ECG icon, which turns orange while locked.
+
+---
+
 ## Download & install
 
-Grab **`SystemPulse-1.1.0-macOS.zip`** from the [Releases page](https://github.com/xiaohe4966/SystemPulse/releases/latest), unzip it, drop `SystemPulse.app` into `/Applications`, and double-click. An ECG icon appears in the menu bar.
+Grab **`SystemPulse-1.2.0-macOS.zip`** from the [Releases page](https://github.com/xiaohe4966/SystemPulse/releases/latest), unzip it, drop `SystemPulse.app` into `/Applications` (you'll see the chip icon in Finder), and double-click. An ECG icon appears in the menu bar.
 
 > **"App is damaged and can't be opened"?**
 > The app is ad-hoc signed — there is no Apple Developer ID signature or notarization. Run
@@ -103,9 +124,10 @@ cd SystemPulse
 ./build.sh            # Universal build (arm64 + x86_64), ready to share
 ./build.sh --run      # Build and launch
 ./build.sh --native   # Current architecture only, faster
+SYSTEMPULSE_ICON_STYLE=pulse ./build.sh   # Optional: pick another app icon style
 ```
 
-The output is `SystemPulse.app` next to the script (ad-hoc signed). The script compiles the C temperature probe with `clang`, builds both architectures with `swiftc`, and merges them with `lipo`. `--run` and `--native` can be combined.
+The output is `SystemPulse.app` next to the script (ad-hoc signed). The script compiles the C temperature probe with `clang`, builds both architectures with `swiftc`, merges them with `lipo`, and draws / packs `AppIcon.icns` in the same pass. `--run` and `--native` can be combined.
 
 CI runs the exact same `./build.sh`; see [.github/workflows/build.yml](.github/workflows/build.yml).
 
@@ -123,6 +145,7 @@ CI runs the exact same `./build.sh`; see [.github/workflows/build.yml](.github/w
 | `Sources/ProcessListController.swift` | Process `NSWindow` + `NSTableView`: metric switch, three sort modes, search, context menu, force quit and Finder reveal |
 | `Sources/TemperatureMonitor.swift` | 3-second throttle/cache so sensors aren't enumerated every second |
 | `Sources/TemperatureProbe.c/.h` | Reads temperature through IOKit HID sensors (C layer) |
+| `tools/MakeAppIcon/main.swift` | CoreGraphics icon generator: three styles, ten sizes from 16 to 1024 px, automatic simplification at small sizes |
 
 **About temperature**: Apple exposes no public CPU temperature API, and the SMC keys from the Intel era don't apply to Apple Silicon. SystemPulse uses the IOKit HID sensor channel: it matches `PrimaryUsagePage = 0xff00 (AppleVendor)` / `PrimaryUsage = 0x0005 (temperature sensor)`, reads `kIOHIDEventTypeTemperature` events from each service, skips battery / gas gauge sensors, and reports the highest die temperature. These are private symbols resolved at runtime with `dlsym` — **nothing is linked against a private API statically** — and each event object is released immediately after reading.
 

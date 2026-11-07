@@ -5,6 +5,9 @@ SystemPulse.app/
 *.dmg
 *.o
 
+# 图标各尺寸校验图（本地预览用，不入库）
+design/sizes/
+
 # macOS
 .DS_Store
 .AppleDouble
