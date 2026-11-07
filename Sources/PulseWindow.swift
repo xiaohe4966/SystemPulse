@@ -102,6 +102,8 @@ final class PulseView: NSView {
     var onFrameChanged: ((NSRect) -> Void)?
     var onLockTapped: (() -> Void)?
     var onAlphaChanged: ((CGFloat) -> Void)?
+    /// 点击 CPU / 内存数值时打开对应维度的进程占用列表
+    var onShowProcessList: ((ProcessMetric) -> Void)?
 
     private let monitor = SystemMonitor()
     private let pointCount = 90
@@ -122,11 +124,16 @@ final class PulseView: NSView {
     private var dragMode: DragMode = .none
     private var initialMouseLocation = NSPoint.zero
     private var initialFrame = NSRect.zero
+    private var pressedMetric: ProcessMetric?   // 在数值上按下，但尚未确认是点击还是拖动
+    private var dragDidMove = false
+    private var hoveredMetric: ProcessMetric?
 
     // 窗内控件的命中区域（每次 draw 时刷新）
     private var alphaTrackRect = NSRect.zero     // 滑杆视觉轨道
     private var alphaHitRect = NSRect.zero      // 滑杆点击/拖动热区
     private var lockHitRect = NSRect.zero       // 锁定按钮热区
+    private var cpuHitRect = NSRect.zero        // CPU 数值点击热区
+    private var memoryHitRect = NSRect.zero     // 内存数值点击热区
 
     private let edgeThreshold: CGFloat = 7
     private let minSize = NSSize(width: 240, height: 116)
@@ -241,14 +248,31 @@ final class PulseView: NSView {
         let memoryText = String(format: "%.1f%%", latest.memory * 100)
         let cpuWidth = textWidth(cpuText, font: numberFont)
         let memoryWidth = textWidth(memoryText, font: numberFont)
+        let cpuLabelWidth = textWidth("CPU", font: labelFont)
+        let memoryLabelWidth = textWidth("MEM", font: labelFont)
+        let column2 = inner.minX + max(120, inner.width * 0.47)
+
+        // 数值本身是可点击热区：点击弹出对应维度的进程占用列表
+        cpuHitRect = NSRect(x: inner.minX - 3, y: rowY - 2,
+                            width: cpuWidth + 5 + cpuLabelWidth + 14, height: 26)
+        memoryHitRect = NSRect(x: column2 - 3, y: rowY - 2,
+                               width: memoryWidth + 5 + memoryLabelWidth + 14, height: 26)
+        if !isLocked, let hovered = hoveredMetric {
+            let rect = hovered == .cpu ? cpuHitRect : memoryHitRect
+            pal.text.withAlphaComponent(0.10).setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
+        }
 
         drawText(cpuText, at: NSPoint(x: inner.minX, y: rowY), font: numberFont, color: pal.cpu)
         drawText("CPU", at: NSPoint(x: inner.minX + cpuWidth + 5, y: rowY + 13),
                  font: labelFont, color: pal.text)
+        drawText("›", at: NSPoint(x: inner.minX + cpuWidth + 5 + cpuLabelWidth + 2, y: rowY + 12),
+                 font: labelFont, color: pal.text)
 
-        let column2 = inner.minX + max(120, inner.width * 0.47)
         drawText(memoryText, at: NSPoint(x: column2, y: rowY), font: numberFont, color: pal.memory)
         drawText("MEM", at: NSPoint(x: column2 + memoryWidth + 5, y: rowY + 13),
+                 font: labelFont, color: pal.text)
+        drawText("›", at: NSPoint(x: column2 + memoryWidth + 5 + memoryLabelWidth + 2, y: rowY + 12),
                  font: labelFont, color: pal.text)
 
         // 空间够时在数值行右侧显示醒目的温度；窄窗口时挪到底部小字里
@@ -477,6 +501,15 @@ final class PulseView: NSView {
             return
         }
 
+        // 在数值上按下先记录，等 mouseUp 时区分「点击」与「拖动窗口」
+        pressedMetric = nil
+        dragDidMove = false
+        if cpuHitRect.contains(location) {
+            pressedMetric = .cpu
+        } else if memoryHitRect.contains(location) {
+            pressedMetric = .memory
+        }
+
         let hitEdges = edges(at: location)
         initialMouseLocation = NSEvent.mouseLocation
         initialFrame = window.frame
@@ -495,6 +528,10 @@ final class PulseView: NSView {
         }
 
         let current = NSEvent.mouseLocation
+        if abs(current.x - initialMouseLocation.x) > 3
+            || abs(current.y - initialMouseLocation.y) > 3 {
+            dragDidMove = true
+        }
         let dx = current.x - initialMouseLocation.x
         let dy = current.y - initialMouseLocation.y
         var frame = initialFrame
@@ -529,6 +566,14 @@ final class PulseView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        let pending = pressedMetric
+        pressedMetric = nil
+        if let metric = pending, !dragDidMove {
+            dragMode = .none
+            NSCursor.arrow.set()
+            onShowProcessList?(metric)
+            return
+        }
         switch dragMode {
         case .none:
             return
@@ -561,8 +606,22 @@ final class PulseView: NSView {
         guard !isLocked else { return }
         let location = convert(event.locationInWindow, from: nil)
         if lockHitRect.contains(location) || alphaHitRect.contains(location) {
+            if hoveredMetric != nil { hoveredMetric = nil; needsDisplay = true }
             NSCursor.pointingHand.set()
             return
+        }
+        if cpuHitRect.contains(location) || memoryHitRect.contains(location) {
+            let metric: ProcessMetric = cpuHitRect.contains(location) ? .cpu : .memory
+            if hoveredMetric != metric {
+                hoveredMetric = metric
+                needsDisplay = true
+            }
+            NSCursor.pointingHand.set()
+            return
+        }
+        if hoveredMetric != nil {
+            hoveredMetric = nil
+            needsDisplay = true
         }
         let hitEdges = edges(at: location)
         if hitEdges.isEmpty {
@@ -577,6 +636,8 @@ final class PulseView: NSView {
     }
 
     override func mouseExited(with event: NSEvent) {
+        hoveredMetric = nil
+        needsDisplay = true
         NSCursor.arrow.set()
     }
 }

@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var panel: PulsePanel!
     private var pulseView: PulseView!
+    private let processList = ProcessListController()
 
     private var menu: NSMenu!
     private var statusTitleItem: NSMenuItem!
@@ -69,6 +70,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.pulseView?.backgroundAlpha = value
             self.defaults.set(Double(value), forKey: Key.alpha)
             self.refreshMenu()
+        }
+        pulseView?.onShowProcessList = { [weak self] metric in
+            guard let self = self else { return }
+            self.processList.show(metric: metric, near: self.panel.frame, theme: self.theme)
         }
         panel.ignoresMouseEvents = locked
         panel.level = alwaysOnTop ? .floating : .normal
@@ -159,6 +164,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         topItem = NSMenuItem(title: "始终置顶显示", action: #selector(toggleAlwaysOnTop), keyEquivalent: "")
         topItem.target = self
         menu.addItem(topItem)
+
+        menu.addItem(.separator())
+        let processHeader = NSMenuItem(title: "进程占用列表（也可点击浮窗数值）", action: nil, keyEquivalent: "")
+        processHeader.isEnabled = false
+        menu.addItem(processHeader)
+        let cpuItem = NSMenuItem(title: "按 CPU 占用排序…", action: #selector(showCPUList), keyEquivalent: "")
+        cpuItem.target = self
+        cpuItem.toolTip = "查看各进程 CPU 占用，可降序 / 升序 / 按名称排列，右键可强制结束"
+        menu.addItem(cpuItem)
+        let memoryItem = NSMenuItem(title: "按内存占用排序…", action: #selector(showMemoryList), keyEquivalent: "")
+        memoryItem.target = self
+        memoryItem.toolTip = "查看各进程内存占用，可降序 / 升序 / 按名称排列，右键可强制结束"
+        menu.addItem(memoryItem)
 
         menu.addItem(.separator())
         alphaHeaderItem = NSMenuItem(title: "背景浓度", action: nil, keyEquivalent: "")
@@ -294,8 +312,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func chooseTheme(_ sender: NSMenuItem) {
         theme = sender.tag == 0 ? .dark : .light
         pulseView?.theme = theme
+        processList.setTheme(theme)
         defaults.set(theme.rawValue, forKey: Key.theme)
         refreshMenu()
+    }
+
+    @objc private func showCPUList() {
+        processList.show(metric: .cpu, near: panel.frame, theme: theme)
+    }
+
+    @objc private func showMemoryList() {
+        processList.show(metric: .memory, near: panel.frame, theme: theme)
     }
 
     @objc private func resetFrame() {

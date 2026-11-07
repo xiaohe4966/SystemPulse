@@ -1,6 +1,6 @@
 # SystemPulse
 
-A native macOS transparent floating window that shows live **CPU / memory / SoC temperature** with heartbeat-style sparklines. Freely draggable and resizable, adjustable opacity, and one click to lock it so every mouse click passes straight through to the window underneath.
+A native macOS transparent floating window that shows live **CPU / memory / SoC temperature** with heartbeat-style sparklines. Freely draggable and resizable, adjustable opacity, and one click to lock it so every mouse click passes straight through to the window underneath. **Click the CPU or memory number to open a process list** with sortable usage, search, and force-quit actions.
 
 [简体中文](README.md) · **English**
 
@@ -22,7 +22,9 @@ A native macOS transparent floating window that shows live **CPU / memory / SoC 
 | Drag & resize | Grab any edge, corner, or the bottom-right grip (minimum 240×116); position and size are remembered |
 | Lock / unlock | When locked, clicks pass through and the panel ignores the mouse entirely; unlock with `⌥⌘L` or the menu bar |
 | On-window controls | Mini opacity slider and lock button in the title row, with a live opacity percentage |
-| Menu bar | ECG icon with live `CPU% · MEM% · temp`; menu for show/hide, always-on-top, opacity presets, appearance, reset position, quit |
+| Process list | Click the CPU / memory number to open a separate window with **descending / ascending / name** sorting, live search, refreshed every 2 seconds |
+| Right-click a process | Force quit, graceful terminate, reveal the app in Finder, open the app, copy name / PID / full path |
+| Menu bar | ECG icon with live `CPU% · MEM% · temp`; menu for show/hide, always-on-top, opacity presets, appearance, reset position, process list, quit |
 
 | Default | Locked |
 | --- | --- |
@@ -32,11 +34,13 @@ A native macOS transparent floating window that shows live **CPU / memory / SoC 
 | --- | --- |
 | ![Compact view](screenshots/compact.png) | ![Translucent view](screenshots/transparency.png) |
 
+![Process list](screenshots/processes.png)
+
 ---
 
 ## Download & install
 
-Grab **`SystemPulse-1.0.0-macOS.zip`** from the [Releases page](https://github.com/xiaohe4966/SystemPulse/releases/latest), unzip it, drop `SystemPulse.app` into `/Applications`, and double-click. An ECG icon appears in the menu bar.
+Grab **`SystemPulse-1.1.0-macOS.zip`** from the [Releases page](https://github.com/xiaohe4966/SystemPulse/releases/latest), unzip it, drop `SystemPulse.app` into `/Applications`, and double-click. An ECG icon appears in the menu bar.
 
 > **"App is damaged and can't be opened"?**
 > The app is ad-hoc signed — there is no Apple Developer ID signature or notarization. Run
@@ -56,11 +60,35 @@ To uninstall: quit from the menu bar icon and move `SystemPulse.app` to the Tras
 | Drag the slider in the title row | Adjust background opacity (20%–100%), with a live percentage |
 | Click the green **锁定 / Lock** button | Lock instantly; the button turns orange and reads `⌥⌘L 解锁` |
 | Press `⌥⌘L`, or menu bar icon → **解锁悬浮窗 / Unlock** | Unlock and restore dragging / resizing |
+| Click the CPU or memory percentage (there is a small `›` after it) | Open the process list for that metric |
+| Menu bar → **按 CPU 占用排序… / 按内存占用排序…** | Open the list even while the panel is locked or hidden |
 | Menu bar menu | Show/hide, always on top, opacity presets, dark/light, reset position and size, quit |
 
 **About locking**: locking sets `ignoresMouseEvents`, so every click goes through to the window below and the panel stops responding to the mouse — including its own lock button and slider. That is intentional: "locked" means *nothing* on the panel reacts. Unlocking therefore lives outside the panel (menu bar + global hotkey), and the locked button puts the shortcut right in its label as a reminder.
 
 > If macOS hides the menu bar icon, `⌥⌘L` still unlocks. You can also run `defaults delete local.systempulse.monitor` and restart to reset everything.
+
+---
+
+## Process list
+
+Click the CPU or memory percentage on the panel (a small `›` follows the number and a subtle highlight appears on hover), or use the menu bar → **按 CPU 占用排序…** / **按内存占用排序…**. The list is a separate window that can be moved, resized and closed; its position and size are remembered.
+
+| | |
+| --- | --- |
+| Five columns | Process name (with icon), PID, CPU%, memory (MB/GB + share), full executable path |
+| Switch metric | `CPU` / `内存` segmented control, or click the `CPU%` / `内存` column header |
+| Three sort modes | `降序` (descending, default), `升序` (ascending), `名称` (by name A–Z); column headers work too |
+| Search | Live filter by process name or path in the top-right search field |
+| Refresh | Every 2 seconds; CPU is an instantaneous delta between two samples, not a lifetime average |
+| Right-click menu | **强制结束** (SIGKILL, with confirmation), **正常退出** (SIGTERM), **在 Finder 中显示运行位置** (reveal in Finder), open the app, open the containing folder, copy name / PID / full path, refresh now |
+| Double-click a row | Reveal that process in Finder |
+
+"Reveal in Finder" prefers the outermost `.app` in the executable path (so a Chrome Helper points at the main app); plain command-line processes select the executable itself.
+
+> **Units**: per-process CPU% is normalised by the logical core count so it matches the panel's system-wide CPU% — the values roughly add up to total CPU. This differs from Activity Monitor, which reports percentage of a single core and can exceed 100%. Memory uses resident physical memory (RSS) divided by total RAM.
+>
+> Force-quit only works on processes your account is allowed to signal; protected/other-user processes report an error. `kernel_task`, PID ≤ 1 and SystemPulse itself cannot be terminated from the list.
 
 ---
 
@@ -89,8 +117,10 @@ CI runs the exact same `./build.sh`; see [.github/workflows/build.yml](.github/w
 | --- | --- |
 | `Sources/main.swift` | AppKit entry point; `LSUIElement` app with no Dock icon |
 | `Sources/AppDelegate.swift` | `NSStatusItem` menu bar, lock state, Carbon global hotkey `⌥⌘L`, `UserDefaults` persistence |
-| `Sources/PulseWindow.swift` | Borderless transparent `NSPanel`, CoreGraphics drawing, hit regions for move / 8-way resize / slider / button |
+| `Sources/PulseWindow.swift` | Borderless transparent `NSPanel`, CoreGraphics drawing, hit regions for move / 8-way resize / slider / button / clickable numbers |
 | `Sources/SystemMonitor.swift` | `host_statistics(HOST_CPU_LOAD_INFO)` CPU tick deltas; `host_statistics64(HOST_VM_INFO64)` treats free + inactive pages as available memory |
+| `Sources/ProcessMonitor.swift` | `libproc` (`proc_listallpids` / `PROC_PIDTASKINFO` / `proc_pidpath`) process enumeration, Mach absolute-time deltas for instantaneous CPU, RSS for memory, cached app names and `.app` paths |
+| `Sources/ProcessListController.swift` | Process `NSWindow` + `NSTableView`: metric switch, three sort modes, search, context menu, force quit and Finder reveal |
 | `Sources/TemperatureMonitor.swift` | 3-second throttle/cache so sensors aren't enumerated every second |
 | `Sources/TemperatureProbe.c/.h` | Reads temperature through IOKit HID sensors (C layer) |
 
@@ -98,11 +128,13 @@ CI runs the exact same `./build.sh`; see [.github/workflows/build.yml](.github/w
 
 If no sensor can be read (for example on an Intel Mac, or after a future macOS update changes the interface), the temperature number and purple line **hide themselves automatically**; CPU and memory keep working. The value is the hottest SoC die sensor, mapped to the chart over 30–80 °C; treat it as a reference, not an official Apple temperature metric.
 
+**About process data**: `pti_total_user + pti_total_system` from `PROC_PIDTASKINFO` is a cumulative Mach absolute-time counter. Dividing its delta by the `mach_absolute_time()` delta between two samples and by the logical core count yields an instantaneous, system-normalised CPU share. Numerator and denominator share the same time unit, so no `mach_timebase_info` conversion is needed and the maths holds on both Apple Silicon and Intel. Names come from `NSRunningApplication.localizedName`, paths from `proc_pidpath`, and the `.app` location from `bundleURL` or the outermost `.app` in the path. Everything uses public `libproc` / AppKit APIs — no root, Accessibility or Full Disk Access permission.
+
 ---
 
 ## Privacy
 
-Everything comes from local system counters. No network access, no uploads, no logs, and no Accessibility / Full Disk Access / root permissions. The global hotkey uses Carbon `RegisterEventHotKey`, which also needs no Accessibility authorization.
+Everything comes from local system counters. No network access, no uploads, no logs, and no Accessibility / Full Disk Access / root permissions. The process list only displays local names, PIDs, CPU/memory and executable paths — nothing is uploaded or written to disk. The global hotkey uses Carbon `RegisterEventHotKey`, which also needs no Accessibility authorization.
 
 ## Known limitations
 
@@ -110,6 +142,8 @@ Everything comes from local system counters. No network access, no uploads, no l
 - As an `LSUIElement` app there is no Dock icon or main menu; quit from the menu bar icon.
 - Temperature is the hottest SoC die sensor, and sensor names/counts vary by model — indicative only.
 - Minimum window size is 240×116; smaller would crush the text.
+- Process CPU% is normalised to the whole machine (see above), unlike Activity Monitor's per-core figures.
+- Force quit is subject to macOS permissions; processes owned by other users or protected by the system may return `EPERM`.
 - The in-app UI text (buttons and menu items) is Chinese only; this README lists the English equivalents.
 
 ## License
